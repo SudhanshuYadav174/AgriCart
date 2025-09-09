@@ -3,6 +3,10 @@
     "passport_registry": {
       "type": "motoko",
       "main": "src/ic/passport_registry/main.mo"
+    },
+    "agriq_frontend": {
+      "type": "assets",
+      "source": ["dist/"]
     }
   },
   "networks": {
