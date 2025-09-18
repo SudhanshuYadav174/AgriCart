@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useICAuth } from "@/hooks/useICAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Leaf, User, Building, Shield, Truck } from "lucide-react";
+import { Leaf, User, Building, Shield, Truck, Globe } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ParticleBackground } from "@/components/ui/particle-background";
 
@@ -40,6 +41,7 @@ const roleConfigs = {
 const Login = () => {
   const [selectedRole, setSelectedRole] = useState<keyof typeof roleConfigs>("exporter");
   const { user, signIn, loading, getUserProfile } = useAuth();
+  const { login: icLogin, isAuthenticated: icAuthenticated, loading: icLoading, getPrincipalText } = useICAuth();
   const navigate = useNavigate();
   const hasRedirected = useRef(false); // Prevent multiple redirects
   const [formData, setFormData] = useState({
@@ -82,36 +84,55 @@ const Login = () => {
     }
   };
 
+  const handleICLogin = async () => {
+    const success = await icLogin();
+    if (success) {
+      // For IC authentication, we'll redirect to a default dashboard
+      // since we don't have role-based profiles yet for IC users
+      navigate('/dashboard/exporter');
+    }
+  };
+
   // Only redirect if user is already logged in when component first mounts
   useEffect(() => {
-    if (user && !loading && !hasRedirected.current) {
+    // Check both Supabase and IC authentication
+    if ((user && !loading && !hasRedirected.current) || (icAuthenticated && !icLoading && !hasRedirected.current)) {
       hasRedirected.current = true; // Prevent future redirects
       console.log('User already logged in, redirecting to dashboard');
       
-      const getUserRoleAndRedirect = async () => {
-        try {
-          const profile = await getUserProfile();
-          if (profile?.role) {
-            const roleMapping = {
-              'exporter': 'exporter',
-              'qa_agency': 'qa',
-              'importer': 'importer', 
-              'admin': 'admin'
-            };
-            const dashboardRoute = roleMapping[profile.role as keyof typeof roleMapping] || 'exporter';
-            navigate(`/dashboard/${dashboardRoute}`, { replace: true });
-          } else {
+      if (icAuthenticated && !user) {
+        // IC authenticated user - redirect to default dashboard
+        navigate('/dashboard/exporter', { replace: true });
+        return;
+      }
+      
+      if (user) {
+        // Supabase authenticated user - check profile and redirect based on role
+        const getUserRoleAndRedirect = async () => {
+          try {
+            const profile = await getUserProfile();
+            if (profile?.role) {
+              const roleMapping = {
+                'exporter': 'exporter',
+                'qa_agency': 'qa',
+                'importer': 'importer', 
+                'admin': 'admin'
+              };
+              const dashboardRoute = roleMapping[profile.role as keyof typeof roleMapping] || 'exporter';
+              navigate(`/dashboard/${dashboardRoute}`, { replace: true });
+            } else {
+              navigate('/dashboard/exporter', { replace: true });
+            }
+          } catch (error) {
+            console.error('Error getting profile:', error);
             navigate('/dashboard/exporter', { replace: true });
           }
-        } catch (error) {
-          console.error('Error getting profile:', error);
-          navigate('/dashboard/exporter', { replace: true });
-        }
-      };
-      
-      getUserRoleAndRedirect();
+        };
+        
+        getUserRoleAndRedirect();
+      }
     }
-  }, [user, loading, getUserProfile, navigate]);
+  }, [user, loading, getUserProfile, navigate, icAuthenticated, icLoading]);
 
   const currentRoleConfig = roleConfigs[selectedRole];
   const RoleIcon = currentRoleConfig.icon;
@@ -223,6 +244,41 @@ const Login = () => {
                 Sign In as {currentRoleConfig.title.split(' ')[0]}
               </Button>
             </form>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="px-3 text-black font-medium">Or continue with</span>
+              </div>
+            </div>
+
+            {/* ICP Login */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium shadow-lg transition-all duration-200" 
+              size="lg"
+              onClick={handleICLogin}
+              disabled={icLoading}
+            >
+              <Globe className="mr-2 h-4 w-4" />
+              {icLoading ? 'Connecting...' : 'Sign In with Internet Identity'}
+            </Button>
+
+            {/* Show IC Auth Status */}
+            {icAuthenticated && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="text-sm text-green-800">
+                  ✅ Connected with Internet Identity
+                  <div className="text-xs text-green-600 mt-1 font-mono">
+                    Principal: {getPrincipalText()?.slice(0, 20)}...
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sign Up Link */}
             <div className="text-center text-sm text-gray-700 dark:text-black">

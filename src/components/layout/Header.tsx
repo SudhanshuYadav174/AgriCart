@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Leaf, Shield, QrCode, LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useICAuth } from "@/hooks/useICAuth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,11 @@ const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { user, signOut, getUserProfile } = useAuth();
+  const { isAuthenticated: icAuthenticated, logout: icLogout, getPrincipalText } = useICAuth();
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Check if any authentication method is active
+  const isLoggedIn = user || icAuthenticated;
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -115,21 +120,31 @@ const Header = () => {
           {/* Right section - Theme Toggle + Auth */}
           <div className="hidden md:flex items-center space-x-4">
             <ThemeToggle />
-            {user ? (
+            {isLoggedIn ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="flex items-center space-x-2">
                     <User className="h-4 w-4" />
-                    <span>{userProfile?.first_name || user.email}</span>
+                    <span>
+                      {user 
+                        ? (userProfile?.first_name || user.email)
+                        : icAuthenticated 
+                          ? `IC User (${getPrincipalText()?.slice(0, 8)}...)`
+                          : 'User'
+                      }
+                    </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
-                    <Link to={getDashboardPath(userProfile?.role || user.user_metadata?.role || 'exporter')}>
-                      Dashboard ({userProfile?.role || user.user_metadata?.role || 'exporter'})
+                    <Link to={getDashboardPath(userProfile?.role || user?.user_metadata?.role || 'exporter')}>
+                      Dashboard ({userProfile?.role || user?.user_metadata?.role || 'exporter'})
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={signOut} className="text-destructive">
+                  <DropdownMenuItem 
+                    onClick={user ? signOut : icLogout} 
+                    className="text-destructive"
+                  >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
                   </DropdownMenuItem>
@@ -184,18 +199,18 @@ const Header = () => {
                   <ThemeToggle />
                 </div>
                 <div className="space-y-2">
-                  {user ? (
+                  {isLoggedIn ? (
                     <>
                       <Link 
-                        to={getDashboardPath(userProfile?.role || user.user_metadata?.role || 'exporter')}
+                        to={getDashboardPath(userProfile?.role || user?.user_metadata?.role || 'exporter')}
                         className="block px-3 py-2 rounded-md text-base font-medium text-muted-foreground hover:text-foreground hover:bg-accent"
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        Dashboard ({userProfile?.role || user.user_metadata?.role || 'exporter'})
+                        Dashboard ({userProfile?.role || user?.user_metadata?.role || 'exporter'})
                       </Link>
                       <button 
                         onClick={() => {
-                          signOut();
+                          user ? signOut() : icLogout();
                           setIsMenuOpen(false);
                         }}
                         className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-destructive hover:bg-destructive/10"

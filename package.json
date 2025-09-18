@@ -15,6 +15,7 @@
     },
     "dependencies": {
         "@dfinity/agent": "^3.2.4",
+        "@dfinity/auth-client": "^3.2.6",
         "@dfinity/candid": "^3.2.4",
         "@dfinity/principal": "^3.2.4",
         "@hookform/resolvers": "^3.10.0",
