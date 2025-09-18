@@ -258,6 +258,7 @@ import { useState } from "react";
 import { Navigate } from "react-router-dom"; // Added for guarding
 import { useBatches } from "@/hooks/useBatches";
 import { useAuth } from "@/hooks/useAuth"; // To access current user
+import { useICAuth } from "@/hooks/useICAuth"; // To access IC auth
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -281,11 +282,12 @@ import AnalyticsCharts from "@/components/analytics/AnalyticsCharts";
 const ExporterDashboard = () => {
   // All hooks must be defined before any conditional returns
   const { user, profile, loading: authLoading } = useAuth();
+  const { isAuthenticated: icAuthenticated, loading: icLoading } = useICAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const { batches, loading: batchesLoading } = useBatches();
 
   // Auth/role guard using Supabase profile or user metadata
-  if (authLoading) {
+  if (authLoading || icLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-4">
@@ -296,24 +298,30 @@ const ExporterDashboard = () => {
     );
   }
 
-  if (!user) {
+  // Allow access if user is authenticated with IC or Supabase
+  const isAuthenticated = user || icAuthenticated;
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  const role = (profile?.role || user.user_metadata?.role || "").toLowerCase();
-  if (role && role !== "exporter") {
-    switch (role) {
-      case "qa_agency":
-      case "qa":
-        return <Navigate to="/dashboard/qa" replace />;
-      case "importer":
-        return <Navigate to="/dashboard/importer" replace />;
-      case "admin":
-        return <Navigate to="/dashboard/admin" replace />;
-      default:
-        return <Navigate to="/login" replace />;
+  // If user is authenticated with Supabase, check role
+  if (user) {
+    const role = (profile?.role || user.user_metadata?.role || "").toLowerCase();
+    if (role && role !== "exporter") {
+      switch (role) {
+        case "qa_agency":
+        case "qa":
+          return <Navigate to="/dashboard/qa" replace />;
+        case "importer":
+          return <Navigate to="/dashboard/importer" replace />;
+        case "admin":
+          return <Navigate to="/dashboard/admin" replace />;
+        default:
+          return <Navigate to="/login" replace />;
+      }
     }
   }
+  // IC authenticated users can access this dashboard (default exporter access)
 
   // ...rest unchanged
 

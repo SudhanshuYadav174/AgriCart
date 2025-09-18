@@ -34,16 +34,31 @@ export const useICAuth = () => {
         });
 
         const isAuthenticated = await authClient.isAuthenticated();
-        const identity = authClient.getIdentity();
-        const principal = identity.getPrincipal();
+        
+        console.log('IC Auth Client initialized:', { isAuthenticated });
 
-        setAuthState({
-          isAuthenticated,
-          identity,
-          principal,
-          authClient,
-          loading: false,
-        });
+        if (isAuthenticated) {
+          const identity = authClient.getIdentity();
+          const principal = identity.getPrincipal();
+          
+          console.log('IC User authenticated:', { principal: principal.toText() });
+
+          setAuthState({
+            isAuthenticated: true,
+            identity,
+            principal,
+            authClient,
+            loading: false,
+          });
+        } else {
+          setAuthState({
+            isAuthenticated: false,
+            identity: null,
+            principal: null,
+            authClient,
+            loading: false,
+          });
+        }
       } catch (error) {
         console.error('Failed to initialize IC auth client:', error);
         setAuthState(prev => ({ ...prev, loading: false }));

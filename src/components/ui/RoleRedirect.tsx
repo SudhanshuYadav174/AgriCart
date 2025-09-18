@@ -1,9 +1,12 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useICAuth } from "@/hooks/useICAuth";
 
 const RoleRedirect = () => {
   const { user, profile, loading } = useAuth();
-  if (loading) {
+  const { isAuthenticated: icAuthenticated, loading: icLoading } = useICAuth();
+  
+  if (loading || icLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-4">
@@ -13,6 +16,12 @@ const RoleRedirect = () => {
       </div>
     );
   }
+
+  // If user is authenticated with IC but not Supabase, redirect to exporter dashboard
+  if (icAuthenticated && !user) {
+    return <Navigate to="/dashboard/exporter" replace />;
+  }
+
   if (!user) return <Navigate to="/login" replace />;
 
   const role = (profile?.role || user.user_metadata?.role || '').toLowerCase();
